@@ -19,10 +19,45 @@ def SVM_loss(S, y, d=1):
     ############################################################
     ###                  START OF YOUR CODE                  ###
     ############################################################
+    
+    # Create a mask that extracts only the score values for the true classes from the score matrix
+    mask_correct = np.zeros((S.shape[0], S.shape[1]))
+    mask_correct[np.arange(0,S.shape[0]), y] = 1
+    mask_correct = mask_correct.astype(bool)
 
-    L = None
-
-    dS = None
+    # Extract score values for correct labels from S
+    s_y = S[mask_correct].reshape(-1, 1)
+    
+    # Extract score values for incorrect labels from S
+    s_k = S[~mask_correct].reshape((S.shape[0], S.shape[1] - 1))
+    
+    # Calculate term that will be compared to zero
+    loss_term_incorrect = s_k - s_y + d
+    
+    # Check if calculated terms are smaller than zero
+    mask_smaller = loss_term_incorrect < 0
+    
+    # Set all components that are smaller than zero to zero
+    loss = loss_term_incorrect.copy()
+    loss[mask_smaller] = 0
+    
+    # Calculate loss value for each item
+    loss = loss.sum(axis=1).reshape(-1, 1)
+    
+    # Calculate loss value for whole dataset
+    L = (1 / S.shape[0]) * loss.sum()
+    
+    # Calculate derivatives for incorrect predictions
+    dS_incorrect = (loss_term_incorrect > 0).astype(np.float).reshape(-1)
+    
+    # Calculate derivatives for correct predictions
+    dS_correct = - dS_incorrect.reshape((S.shape[0], S.shape[1] - 1)).sum(axis=1)
+    
+    # Build the derivation matrix
+    dS = np.zeros((S.shape[0], S.shape[1]))
+    dS[mask_correct] = dS_correct
+    dS[~mask_correct] = dS_incorrect
+    dS = dS / S.shape[0]
 
     ############################################################
     ###                    END OF YOUR CODE                  ###
