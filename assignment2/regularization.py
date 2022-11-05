@@ -62,9 +62,18 @@ def L2_reg(W, r):
     ###                  START OF YOUR CODE                  ###
     ############################################################
 
-    R = None
+    # Absolute sum of all squared weights multiplied by the regularization strength
+    # The last row contains the bias components and is not part of the sum
+    R = r * ((W[:-1]) ** 2).sum()
 
-    dW = None
+    # derivatives of the weight components
+    weights_derivative = 2 * r * W[:-1]
+    
+    # derivatives of the bias components
+    bias_derivative = np.zeros((1,W.shape[1]))
+                               
+    # concatenate weight derivatives and bias derivatives into a single matrix
+    dW = np.concatenate([weights_derivative, bias_derivative], axis=0)
 
     ############################################################
     ###                   END OF YOUR CODE                   ###
