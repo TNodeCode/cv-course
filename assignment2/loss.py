@@ -65,7 +65,6 @@ def SVM_loss(S, y, d=1):
     return L, dS
 
 
-
 def cross_entropy_loss(S, y):
     """
     Compute cross-entropy loss and derivative for a minibatch of scores.
@@ -88,12 +87,21 @@ def cross_entropy_loss(S, y):
     mask_correct[np.arange(0,S.shape[0]), y] = 1
     mask_correct = mask_correct.astype(bool)
     
+    # Get the maximum value of the score matrix for each row
+    max_exp = np.max(S, axis=1).reshape(-1, 1)
+
+    # Shift the score matrix values by the maximum value of each row to the left
+    S = S - max_exp
+
     # Calculate the nominator and the denominator
     denominator = np.exp(S).sum(axis=1)
     nominator = np.exp(S[mask_correct])
     
-    # calculate the fraction
-    fraction = nominator / denominator
+    # Calculate the fraction
+    fraction = np.exp(S[mask_correct]) / np.exp(S).sum(axis=1)
+    
+    # Add a small number to fractions that are zero, because the logarithm of zero is not defined
+    fraction[fraction == 0] = 1e-6
     
     # calculate the loss for a single record
     Ls = - np.log(fraction)
@@ -103,7 +111,7 @@ def cross_entropy_loss(S, y):
     
     # normalize all matrix components with the sigmoid function
     sigmoid = np.exp(S) / denominator.reshape(-1, 1)
-    
+        
     # For all correct predictions we have to subtract one from the sigmoid function output
     sigmoid[mask_correct] -= 1
     
