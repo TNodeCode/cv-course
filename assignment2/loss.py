@@ -82,10 +82,33 @@ def cross_entropy_loss(S, y):
     ############################################################
     ###                  START OF YOUR CODE                  ###
     ############################################################
+    
+    # Create a mask that extracts only the score values for the true classes from the score matrix
+    mask_correct = np.zeros((S.shape[0], S.shape[1]))
+    mask_correct[np.arange(0,S.shape[0]), y] = 1
+    mask_correct = mask_correct.astype(bool)
+    
+    # Calculate the nominator and the denominator
+    denominator = np.exp(S).sum(axis=1)
+    nominator = np.exp(S[mask_correct])
+    
+    # calculate the fraction
+    fraction = nominator / denominator
+    
+    # calculate the loss for a single record
+    Ls = - np.log(fraction)
 
-    L = None
-
-    dS = None
+    # calculate the total loss
+    L = Ls.sum() / S.shape[0]
+    
+    # normalize all matrix components with the sigmoid function
+    sigmoid = np.exp(S) / denominator.reshape(-1, 1)
+    
+    # For all correct predictions we have to subtract one from the sigmoid function output
+    sigmoid[mask_correct] -= 1
+    
+    # Finally we have to devide the matrix by the number of records
+    dS = sigmoid / S.shape[0]
 
     ############################################################
     ###                    END OF YOUR CODE                  ###
