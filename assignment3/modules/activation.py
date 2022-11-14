@@ -24,7 +24,11 @@ class ReLU(Module):
         ###                  START OF YOUR CODE                  ###
         ############################################################
 
-        out = None
+        # Make a copy of the input vector and replace all values that
+        # are smaller than zero with zero
+        self.input = x
+        out = x.copy()
+        out[out <= 0] = 0
 
         ############################################################
         ###                   END OF YOUR CODE                   ###
@@ -47,7 +51,9 @@ class ReLU(Module):
         ###                  START OF YOUR CODE                  ###
         ############################################################
 
-        in_grad = None
+        # Make a copy of the inpput vector and set the values to 1
+        # if the argument is greater than zero and to 0 otherwise
+        in_grad = np.where(self.input <= 0, 0, 1) * out_grad
 
         ############################################################
         ###                   END OF YOUR CODE                   ###
@@ -73,7 +79,8 @@ class Sigmoid(Module):
         ###                  START OF YOUR CODE                  ###
         ############################################################
 
-        out = None
+        self.input = x
+        out = 1 / (1 + np.exp(-x))
 
         ############################################################
         ###                   END OF YOUR CODE                   ###
@@ -96,7 +103,7 @@ class Sigmoid(Module):
         ###                  START OF YOUR CODE                  ###
         ############################################################
 
-        in_grad = None
+        in_grad = (1 / (1 + np.exp(-self.input))) * (1 - (1 / (1 + np.exp(-self.input)))) * out_grad
 
         ############################################################
         ###                   END OF YOUR CODE                   ###
@@ -122,7 +129,8 @@ class Tanh(Module):
         ###                  START OF YOUR CODE                  ###
         ############################################################
 
-        out = None
+        self.input = x
+        out = (np.exp(self.input) - np.exp(-self.input)) / (np.exp(self.input) + np.exp(-self.input))
 
         ############################################################
         ###                   END OF YOUR CODE                   ###
@@ -145,7 +153,7 @@ class Tanh(Module):
         ###                  START OF YOUR CODE                  ###
         ############################################################
 
-        in_grad = None
+        in_grad = (1 - np.tanh(self.input)**2) * out_grad
 
         ############################################################
         ###                   END OF YOUR CODE                   ###

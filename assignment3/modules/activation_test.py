@@ -80,7 +80,7 @@ def ReLU_test():
          [[ 0.30869565,  0.        ],
           [ 0.36956522,  0.        ]]]
     ])
-
+    
     # Check result.
     res_backward = np.allclose(in_grad, correct_in_grad)
 
