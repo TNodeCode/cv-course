@@ -59,9 +59,22 @@ class SGD:
                 ###                  START OF YOUR CODE                  ###
                 ############################################################
 
-                # TODO
-                return None
-
+                # Get velocity, weights and gradient
+                v = velocity[key]
+                param = layer.param[key]
+                grad = layer.grad[key]
+                
+                # Calculate velocity for current timestamp
+                v_t = self.momentum * v + self.lr * grad
+                
+                # Apply regularization
+                if self.weight_decay:
+                    v_t += self.lr * self.weight_decay * param
+                
+                # Update velocity and weights
+                param -= v_t
+                velocity[key] = v_t
+                
                 ############################################################
                 ###                   END OF YOUR CODE                   ###
                 ############################################################

@@ -202,6 +202,9 @@ class Conv2d(Module):
         self.param['weight'] = np.random.uniform(-k_sqrt, k_sqrt,
                                                  (out_channels, in_channels,
                                                   kernel_size, kernel_size))
+        
+        if self.bias:
+            self.param['bias'] = np.random.uniform(-k_sqrt, k_sqrt, out_channels)
 
         ############################################################
         ###                   END OF YOUR CODE                   ###
