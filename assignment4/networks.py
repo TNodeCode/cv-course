@@ -33,11 +33,11 @@ class ResidualBlock(nn.Module):
             kernel_size=3,
             stride=stride,
             padding=1,
-            bias=False
+            bias=True
         )
         
         # First batch normalization
-        self.batchnorm1 = nn.BatchNorm2d(3)
+        self.batchnorm1 = nn.BatchNorm2d(out_channels)
         
         # ReLU activation function
         self.activation1 = nn.ReLU()
@@ -47,13 +47,13 @@ class ResidualBlock(nn.Module):
             in_channels=in_channels,
             out_channels=out_channels,
             kernel_size=3,
-            stride=1,
+            stride=stride,
             padding=1,
-            bias=False
+            bias=True
         )
         
         # Second batch normalization layer
-        self.batchnorm2 = nn.BatchNorm2d(3)
+        self.batchnorm2 = nn.BatchNorm2d(out_channels)
         
         # Convolutional layer with 1x1 kernel for dimensionality reduction
         self.conv_dimred = nn.Conv2d(
@@ -64,6 +64,9 @@ class ResidualBlock(nn.Module):
             padding=0,
             bias=False
         )
+        
+        # Identity layer
+        self.identity = nn.Identity()
         
         # Third batch normalization layer
         self.batchnorm3 = nn.BatchNorm2d(1)
@@ -107,7 +110,7 @@ class ResidualBlock(nn.Module):
             x_id = self.conv_dimred(x)
             log("x_id after conv_dimred", x_id.shape)
         else:
-            x_id = x
+            x_id = self.identity(x)
         log("x_id before batchnorm3", x_id.shape)
         x_id = self.batchnorm3(x_id)
         log("x_id after batchnorm3", x_id.shape)
