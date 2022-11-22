@@ -103,7 +103,7 @@ class ResidualBlock(nn.Module):
         x_id = self.skip(x)
         
         # Input plus residual
-        out = x_id + r
+        out = self.activation(x_id + r)
 
         ############################################################
         ###                   END OF YOUR CODE                   ###
