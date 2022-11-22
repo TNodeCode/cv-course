@@ -2,11 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# TODO remove
-def log(*args):
-    pass
-    #print(*args)
-
 
 
 class ResidualBlock(nn.Module):
@@ -68,7 +63,8 @@ class ResidualBlock(nn.Module):
         # Identity layer
         self.identity = nn.Identity()
         
-        if in_channels = out_channels:
+        # Define skip layer
+        if in_channels == out_channels:
             self.skip = self.conv_dimred
         else:
             self.skip = self.identity
@@ -97,33 +93,17 @@ class ResidualBlock(nn.Module):
         ############################################################
 
         # First branch
-        log("x before conv1", x.shape)
         r = self.conv1(x)
-        log("r before batchnorm1", r.shape)
         r = self.batchnorm1(r)
-        log("r before activation1", r.shape)
         r = self.activation1(r)
-        log("r before conv2", r.shape)
         r = self.conv2(r)
-        log("r before batchnorm2", r.shape)
         r = self.batchnorm2(r)
-        log("r after batchnorm2", r.shape)
         
         # Second branch
-        #if x.shape[1] > 1:
-        #    log("x before conv_dimred", x.shape)
-        #    x_id = self.conv_dimred(x)
-        #    log("x_id after conv_dimred", x_id.shape)
-        #else:
-        #    x_id = self.identity(x)
-        #log("x_id before batchnorm3", x_id.shape)
-        #x_id = self.batchnorm3(x_id)
-        #log("x_id after batchnorm3", x_id.shape)
         x_id = self.skip(x)
         
         # Input plus residual
         out = x_id + r
-        log("out tensor", out.shape)
 
         ############################################################
         ###                   END OF YOUR CODE                   ###
@@ -153,7 +133,7 @@ class ResNet(nn.Module):
             kernel_size=3,
             stride=1,
             padding=1,
-            bias=False
+            bias=True
         )
         
         # First batch normalization
@@ -194,26 +174,17 @@ class ResNet(nn.Module):
         ###                  START OF YOUR CODE                  ###
         ############################################################
 
-        log("x before conv1", x.shape)
         x = self.conv1(x)
-        log("x before batchnorm1", x.shape)
         x = self.batchnorm1(x)
-        log("x before activation", x.shape)
         x = self.activation1(x)
         
-        log("x before block", x.shape)
         # Run tensor through residual blocks
         for i in range(self.n_blocks):
-            log("BLOCK i", i)
             x = self.blocks[i](x)        
 
-        log("x before pooling", x.shape)
         x = self.pool(x)
-        log("x before flatten", x.shape)
         x = torch.flatten(x, 1) # flatten all dimensions except batch
-        log("x before linear", x.shape)
         x = self.linear(x)
-        log("x out", x.shape)
         
         out = x
 
