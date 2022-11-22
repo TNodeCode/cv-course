@@ -21,6 +21,9 @@ class ResidualBlock(nn.Module):
         ###                  START OF YOUR CODE                  ###
         ############################################################
 
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        
         # First coonvolutional layer
         self.conv1 = nn.Conv2d(
             in_channels=in_channels,
@@ -52,8 +55,8 @@ class ResidualBlock(nn.Module):
         
         # Convolutional layer with 1x1 kernel for dimensionality reduction
         self.conv_dimred = nn.Conv2d(
-            in_channels=out_channels,
-            out_channels=1,
+            in_channels=in_channels,
+            out_channels=out_channels,
             kernel_size=1,
             stride=1,
             padding=0,
@@ -64,7 +67,7 @@ class ResidualBlock(nn.Module):
         self.identity = nn.Identity()
         
         # Define skip layer
-        if in_channels == out_channels:
+        if in_channels != out_channels:
             self.skip = self.conv_dimred
         else:
             self.skip = self.identity
@@ -103,7 +106,7 @@ class ResidualBlock(nn.Module):
         x_id = self.skip(x)
         
         # Input plus residual
-        out = self.activation(x_id + r)
+        out = self.activation1(x_id + r)
 
         ############################################################
         ###                   END OF YOUR CODE                   ###
@@ -123,13 +126,13 @@ class ResNet(nn.Module):
         ###                  START OF YOUR CODE                  ###
         ############################################################
         
-        # Numer of residual blocks
-        self.n_blocks = 4
+        # Residual block channels
+        n_channels=12
         
         # First convolutional layer of ResNet
         self.conv1 = nn.Conv2d(
             in_channels=3,
-            out_channels=3,
+            out_channels=n_channels,
             kernel_size=3,
             stride=1,
             padding=1,
@@ -137,7 +140,7 @@ class ResNet(nn.Module):
         )
         
         # First batch normalization
-        self.batchnorm1 = nn.BatchNorm2d(3)
+        self.batchnorm1 = nn.BatchNorm2d(n_channels)
         
         # ReLU activation function
         self.activation1 = nn.ReLU()
@@ -148,12 +151,11 @@ class ResNet(nn.Module):
         # Residual blocks
         self.blocks = []
         
-        self.blocks.append(ResidualBlock(3, 8))
-        self.blocks.append(ResidualBlock(8, 16))
-        self.blocks.append(ResidualBlock(16, 16))
+        self.blocks.append(ResidualBlock(in_channels=n_channels, out_channels=n_channels))
+        #self.blocks.append(ResidualBlock(in_channels=n_channels, out_channels=n_channels))
         
         # Flatten output feature maps of size 32x32 to a vector of size 1024x1
-        self.linear = nn.Linear(in_features=3*16*16, out_features=10)
+        self.linear = nn.Linear(in_features=n_channels*16*16, out_features=10)
         
         ############################################################
         ###                   END OF YOUR CODE                   ###
@@ -180,8 +182,8 @@ class ResNet(nn.Module):
         x = self.activation1(x)
         
         # Run tensor through residual blocks
-        for i in range(self.n_blocks):
-            x = self.blocks[i](x)        
+        for i in range(len(self.blocks)):
+            x = self.blocks[i](x)     
 
         x = self.pool(x)
         x = torch.flatten(x, 1) # flatten all dimensions except batch
