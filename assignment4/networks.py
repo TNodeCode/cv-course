@@ -145,14 +145,15 @@ class ResNet(nn.Module):
         # Pooling layer
         self.pool = nn.AvgPool2d(kernel_size=2, stride=2, padding=0)
                 
-        # Flatten output feature maps of size 32x32 to a vector of size 1024x1
-        self.linear = nn.Linear(in_features=3*16*16, out_features=10)
-        
         # Residual blocks
         self.blocks = []
         
-        for i in range(self.n_blocks):
-            self.blocks.append(ResidualBlock(3, 3))
+        self.blocks.append(ResidualBlock(3, 8))
+        self.blocks.append(ResidualBlock(8, 16))
+        self.blocks.append(ResidualBlock(16, 16))
+        
+        # Flatten output feature maps of size 32x32 to a vector of size 1024x1
+        self.linear = nn.Linear(in_features=3*16*16, out_features=10)
         
         ############################################################
         ###                   END OF YOUR CODE                   ###
