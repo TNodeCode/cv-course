@@ -44,7 +44,7 @@ class ResidualBlock(nn.Module):
         
         # Second convolutional layer
         self.conv2 = nn.Conv2d(
-            in_channels=in_channels,
+            in_channels=out_channels,
             out_channels=out_channels,
             kernel_size=3,
             stride=stride,
@@ -67,6 +67,11 @@ class ResidualBlock(nn.Module):
         
         # Identity layer
         self.identity = nn.Identity()
+        
+        if in_channels = out_channels:
+            self.skip = self.conv_dimred
+        else:
+            self.skip = self.identity
         
         # Third batch normalization layer
         self.batchnorm3 = nn.BatchNorm2d(1)
@@ -105,15 +110,16 @@ class ResidualBlock(nn.Module):
         log("r after batchnorm2", r.shape)
         
         # Second branch
-        if x.shape[1] > 1:
-            log("x before conv_dimred", x.shape)
-            x_id = self.conv_dimred(x)
-            log("x_id after conv_dimred", x_id.shape)
-        else:
-            x_id = self.identity(x)
-        log("x_id before batchnorm3", x_id.shape)
-        x_id = self.batchnorm3(x_id)
-        log("x_id after batchnorm3", x_id.shape)
+        #if x.shape[1] > 1:
+        #    log("x before conv_dimred", x.shape)
+        #    x_id = self.conv_dimred(x)
+        #    log("x_id after conv_dimred", x_id.shape)
+        #else:
+        #    x_id = self.identity(x)
+        #log("x_id before batchnorm3", x_id.shape)
+        #x_id = self.batchnorm3(x_id)
+        #log("x_id after batchnorm3", x_id.shape)
+        x_id = self.skip(x)
         
         # Input plus residual
         out = x_id + r
