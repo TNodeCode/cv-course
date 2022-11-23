@@ -126,13 +126,10 @@ class ResNet(nn.Module):
         ###                  START OF YOUR CODE                  ###
         ############################################################
         
-        # Residual block channels
-        n_channels=12
-        
         # First convolutional layer of ResNet
         self.conv1 = nn.Conv2d(
             in_channels=3,
-            out_channels=n_channels,
+            out_channels=96,
             kernel_size=3,
             stride=1,
             padding=1,
@@ -140,7 +137,7 @@ class ResNet(nn.Module):
         )
         
         # First batch normalization
-        self.batchnorm1 = nn.BatchNorm2d(n_channels)
+        self.batchnorm1 = nn.BatchNorm2d(96)
         
         # ReLU activation function
         self.activation1 = nn.ReLU()
@@ -151,11 +148,10 @@ class ResNet(nn.Module):
         # Residual blocks
         self.blocks = []
         
-        self.blocks.append(ResidualBlock(in_channels=n_channels, out_channels=n_channels))
-        #self.blocks.append(ResidualBlock(in_channels=n_channels, out_channels=n_channels))
+        self.blocks.append(ResidualBlock(in_channels=96, out_channels=16))
         
         # Flatten output feature maps of size 32x32 to a vector of size 1024x1
-        self.linear = nn.Linear(in_features=n_channels*16*16, out_features=10)
+        self.linear = nn.Linear(in_features=16*16*16, out_features=10)
         
         ############################################################
         ###                   END OF YOUR CODE                   ###
