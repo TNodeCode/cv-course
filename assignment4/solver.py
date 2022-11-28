@@ -243,7 +243,7 @@ class Solver:
         )
         
         # Move residual blocks to GPU if available
-        for i in range(self.model.n_blocks):
+        for i in range(len(self.model.blocks)):
             self.model.blocks[i].to(device)
                 
         print("Start training ...")
