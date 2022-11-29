@@ -215,11 +215,13 @@ def generate_fpn_anchors(
     }
 
     for level_name, locations in locations_per_fpn_level.items():
+        # Stride of the featue map
         level_stride = strides_per_fpn_level[level_name]
-
+        
         # List of `A = len(aspect_ratios)` anchor boxes.
         anchor_boxes = []
-        for aspect_ratio in aspect_ratios:
+        
+        for i, aspect_ratio in enumerate(aspect_ratios):
             ##################################################################
             # TODO: Implement logic for anchor boxes below. Write vectorized
             # implementation to generate anchors for a single aspect ratio.
@@ -230,7 +232,31 @@ def generate_fpn_anchors(
             # locations to get top-left and bottom-right co-ordinates.
             ##################################################################
             # Replace "pass" statement with your code
-            pass
+
+            # Area of an anchor box
+            n_anchors = len(aspect_ratios)
+            anchor_area = (stride_scale * level_stride) ** 2
+
+            # Calculate width and height of anchor box
+            w = math.sqrt(anchor_area / aspect_ratio)
+            h = anchor_area / w
+            
+            # Get height and width of feature map
+            LH, LW = locations.shape
+            
+            # Create initial tensor for anchors. This inital tensor contains the centers
+            # of the anchor boxes
+            anchors = locations.repeat((2,3)).reshape(LH*3, 4)
+            
+            # Add / Subtract h/2 or w/2 from tensor coordinates, so that we get the upper left
+            # and the bottom right coordinates of the anchor box
+            anchors[i::n_anchors, 0] = locations[:, 1] - w/2
+            anchors[i::n_anchors, 1] = locations[:, 0] - h/2
+            anchors[i::n_anchors, 2] = locations[:, 1] + w/2
+            anchors[i::n_anchors, 3] = locations[:, 0] + h/2
+            
+            anchor_boxes.append(anchors)
+                        
             ##################################################################
             #                           END OF YOUR CODE                     #
             ##################################################################
@@ -274,10 +300,8 @@ def iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     mask_non_overlapping = (boxes1[:, 3] < boxes2[:, 1]) | (boxes2[:, 3] < boxes1[:, 1]) | (boxes1[:, 2] < boxes2[:, 0]) | (boxes2[:, 2] < boxes2[:, 0])
 
     # Compute intersection of pairs
-    x_overlap = torch.max(torch.Tensor([0]), torch.min(boxes1[:, 2], boxes2[:, 2]))
-                    - torch.max(boxes1[:, 0], boxes2[:, 0]);
-    y_overlap = torch.max(torch.Tensor([0]), torch.min(boxes1[:, 3], boxes2[:, 3]))
-                    - torch.max(boxes1[:, 1], boxes2[:, 1]);
+    x_overlap = torch.max(torch.Tensor([0]), torch.min(boxes1[:, 2], boxes2[:, 2])) - torch.max(boxes1[:, 0], boxes2[:, 0]);
+    y_overlap = torch.max(torch.Tensor([0]), torch.min(boxes1[:, 3], boxes2[:, 3])) - torch.max(boxes1[:, 1], boxes2[:, 1]);
     intersection = x_overlap * y_overlap
     intersection[mask_non_overlapping] = 0.0
 
