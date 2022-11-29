@@ -81,7 +81,7 @@ class FCOSPredictionNetwork(nn.Module):
             nn.init.normal_(stem_cls[2*i].weight, mean=0.0, std=1.0)
             nn.init.zeros_(stem_cls[2*i].bias)
             nn.init.normal_(stem_box[2*i].weight, mean=0.0, std=1.0)
-            nn.init.zeros_(stem_cls[2*i].bias)
+            nn.init.zeros_(stem_box[2*i].bias)
 
         
         # Wrap the layers defined by student into a `nn.Sequential` module:
@@ -173,9 +173,9 @@ class FCOSPredictionNetwork(nn.Module):
         boxreg_deltas = {}
         centerness_logits = {}
 
-        # Replace "pass" statement with your code
+        # Iterate over FPN feature map levels
         for key in feats_per_fpn_level.keys():
-            # Pass feature map throug stem and classification layer
+            # Pass feature map through stem and classification layer
             x_cls = self.stem_cls(feats_per_fpn_level[key])
             x_cls = self.pred_cls(x_cls)
             x_cls = torch.flatten(x_cls, start_dim=2)
@@ -529,18 +529,15 @@ class FCOS(nn.Module):
         # call the functions properly.
         ######################################################################
         
-        # Feel free to delete this line: (but keep variable names same)
+        # Get shapes of feature pyramid network features
+        fpn_feats_shapes = {
+            level_name: feat.shape for level_name, feat in fpn_feats.items()
+        }
+        
+        # Get locations per FPN level
         locations_per_fpn_level = get_fpn_location_coords(
-            shape_per_fpn_level={
-                "p3": fpn_feats["p3"].shape,
-                "p4": fpn_feats["p4"].shape,
-                "p5": fpn_feats["p5"].shape
-            },
-            strides_per_fpn_level={
-                "p3": images.shape[0] / fpn_feats["p3"].shape[0],
-                "p4": images.shape[0] / fpn_feats["p4"].shape[0],
-                "p5": images.shape[0] / fpn_feats["p5"].shape[0],
-            }
+            fpn_feats_shapes,
+            self.backbone.fpn_strides
         )
 
         ######################################################################
@@ -571,8 +568,27 @@ class FCOS(nn.Module):
         # Calculate GT deltas for these matched boxes. Similar structure
         # as `matched_gt_boxes` above. Fill this list:
         matched_gt_deltas = []
-        # Replace "pass" statement with your code
-        pass
+        
+        # Iterate over ground truth boxes
+        for i in range(gt_boxes.shape[0]):
+            matched_gt_box = fcos_match_locations_to_gt(
+                locations_per_fpn_level,
+                self.backbone.fpn_strides,
+                gt_boxes[i]
+            )
+            
+            matched_gt_boxes.append(matched_gt_box)
+            matched_gt_delta = {}
+            
+            for level, t in locations_per_fpn_level.items():
+                deltas = fcos_get_deltas_from_locations(
+                    t,
+                    matched_gt_boxes[i][level],
+                    self.backbone.fpn_strides[level]
+                )
+                matched_gt_delta[level] = deltas
+            
+            matched_gt_deltas.append(matched_gt_delta)
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
@@ -604,8 +620,41 @@ class FCOS(nn.Module):
         # Feel free to delete this line: (but keep variable names same)
         loss_cls, loss_box, loss_ctr = None, None, None
 
-        # Replace "pass" statement with your code
-        pass
+        # Compute box loss
+        loss_box = 0.25 * F.l1_loss(
+            pred_boxreg_deltas.view(-1, 4),
+            matched_gt_deltas.view(-1, 4),
+            reduction='none'
+        )
+        
+        loss_box[matched_gt_deltas.view(-1, 4) < 0] *= 0.0
+
+        # Get ground truth centerness
+        gt_centerness = fcos_make_centerness_targets(matched_gt_deltas.view(-1, 4))
+
+        # Compute centerness loss
+        loss_ctr = F.binary_cross_entropy_with_logits(
+            pred_ctr_logits.view(-1),
+            gt_centerness,
+            reduction='none'
+        )
+        loss_ctr[gt_centerness < 0] *= 0.0
+        
+        # Compute classification loss
+        only_class = matched_gt_boxes[:,:,4].to(torch.int64)
+        only_class[only_class == -1] = 255
+        
+        batch_size = matched_gt_boxes.shape[0]
+        h_w_size = matched_gt_boxes.shape[1]
+        n_classes = 21
+
+        labels = torch.empty(batch_size, 1, h_w_size, dtype=torch.long).random_(n_classes)
+        
+        one_hot = torch.zeros(batch_size, n_classes, h_w_size)
+        one_hot.scatter_(1, labels, 1)
+        one_hot = one_hot[:, :n_classes - 1].permute(0,2,1)
+
+        loss_cls = sigmoid_focal_loss(inputs=pred_cls_logits, targets=one_hot) # or matched_gt_boxes
 
         ######################################################################
         #                            END OF YOUR CODE                        #

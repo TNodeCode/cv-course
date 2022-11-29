@@ -60,11 +60,24 @@ class RPNPredictionNetwork(nn.Module):
         # `FCOSPredictionNetwork` for this code block.
         stem_rpn = []
 
-        # Replace "pass" statement with your code
-        pass
+        # Generate layers of alternating convolutional and activation layers
+        for i, c_out in enumerate(stem_channels):
+            c_in = in_channels if i == 0 else stem_channels[i-1]
+            stem_rpn.append(
+                nn.Conv2d(in_channels=c_in, out_channels=c_out, kernel_size=3, stride=1, padding=1)
+            )
+            stem_rpn.append(
+                nn.ReLU()
+            )
+        
+        # Initialize weights and biases of stems
+        for i in range(len(stem_channels)):
+            nn.init.normal_(stem_rpn[2*i].weight, mean=0.0, std=1.0)
+            nn.init.zeros_(stem_rpn[2*i].bias)
 
         # Wrap the layers defined by student into a `nn.Sequential` module:
         self.stem_rpn = nn.Sequential(*stem_rpn)
+        
         ######################################################################
         # TODO: Create TWO 1x1 conv layers for individually to predict
         # objectness and box deltas for every anchor, at every location.
@@ -74,12 +87,25 @@ class RPNPredictionNetwork(nn.Module):
         # numerically stable implementations with logits.
         ######################################################################
 
-        # Replace these lines with your code, keep variable names unchanged.
-        self.pred_obj = None  # Objectness conv
-        self.pred_box = None  # Box regression conv
-
-        # Replace "pass" statement with your code
-        pass
+        # Objectness convolution -> makes binary prediction (object or background)
+        # for each pixel in the feature map
+        self.pred_obj = nn.Conv2d(
+            in_channels=stem_channels[-1], # the input of this convolution is the output of the stem
+            out_channels=1,                # the objectject prediction is a scalar
+            kernel_size=3,
+            stride=1,
+            padding=1
+        )
+        
+        # Box regression convolution -> outputs 4 times num_anchors coordinates for bounding boxes
+        self.pred_box = nn.Conv2d(
+            in_channels=stem_channels[-1], # the input of this convolution is the output of the stem
+            out_channels=4*num_anchors,    # There are four delta values for each anchor box
+            kernel_size=3,
+            stride=1,
+            padding=1
+        )  
+        
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
@@ -110,8 +136,35 @@ class RPNPredictionNetwork(nn.Module):
         object_logits = {}
         boxreg_deltas = {}
 
-        # Replace "pass" statement with your code
-        pass
+        # Iterate over FPN feature map levels
+        for key in feats_per_fpn_level.keys():
+            # Pass feature map through stem and objectness layer
+            x_obj = self.stem_rpn(feats_per_fpn_level[key]) # run feature map through stem
+            x_obj = self.pred_obj(x_obj)                    # object or background
+            x_obj = torch.flatten(x_obj, start_dim=2)
+            x_obj = torch.swapaxes(x_obj, 1, 2)
+            object_logits[key] = x_obj
+            
+            # Pass feature map through stem and boxreg layer
+            x_box = self.stem_rpn(feats_per_fpn_level[key]) # run feature map through stem
+            x_box = self.pred_box(x_box)                    # deltas of bounding box
+            x_box = torch.flatten(x_box, start_dim=2)
+            x_box = torch.swapaxes(x_box, 1, 2)
+            boxreg_deltas[key] = x_box
+            
+        # Make some checks
+        _B, _C, _H, _W = feats_per_fpn_level.shape
+        
+        assert "p3" in object_logits and "p4" in object_logits and "p5" in object_logits, "Missing keys in object_logits"
+        assert "p3" in boxreg_deltas and "p4" in boxreg_deltas and "p5" in boxreg_deltas, "Missing keys in boxreg_deltas"
+        assert len(object_logits.shape) == 2, "object_logits should be a 2D tensor"
+        assert len(boxreg_deltas.shape) == 3, "boxreg_deltas should be a 3D tensor"
+        assert object_logits.shape[0] == _B, "first dimension of object_logits should be batch size"
+        assert boxreg_deltas.shape[0] == _B, "first dimension of boxreg_deltas should be batch size"
+        assert object_logits.shape[1] == _H * _W * 4, "second dimension of object_logits should be H*W*N_ANCHORS"
+        assert boxreg_deltas.shape[1] == _H * _W * 4, "second dimension of boxreg_deltas should be H*W*N_ANCHORS"
+        assert feats_per_fpn_level.shape[2] == 4, "third dimension of boxreg_deltas should be 4"
+            
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
@@ -210,8 +263,31 @@ def iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     ##########################################################################
     # TODO: Implement the IoU function here.                                 #
     ##########################################################################
-    # Replace "pass" statement with your code
-    pass
+    
+    # Create pairs of boxes from boxes1 and boxes2. For that we have to repreat the first array
+    # M times and tile the second array N times
+    M, N = boxes1.shape[0], boxes2.shape[0]
+    boxes1 = boxes1.repeat((1, N)).reshape((M*N,4))
+    boxes2 = boxes2.repeat((M, 1))
+    
+    # Check if boxes are not overlapping. If they are not the intersection will be zero
+    mask_non_overlapping = (boxes1[:, 3] < boxes2[:, 1]) | (boxes2[:, 3] < boxes1[:, 1]) | (boxes1[:, 2] < boxes2[:, 0]) | (boxes2[:, 2] < boxes2[:, 0])
+
+    # Compute intersection of pairs
+    x_overlap = torch.max(torch.Tensor([0]), torch.min(boxes1[:, 2], boxes2[:, 2]))
+                    - torch.max(boxes1[:, 0], boxes2[:, 0]);
+    y_overlap = torch.max(torch.Tensor([0]), torch.min(boxes1[:, 3], boxes2[:, 3]))
+                    - torch.max(boxes1[:, 1], boxes2[:, 1]);
+    intersection = x_overlap * y_overlap
+    intersection[mask_non_overlapping] = 0.0
+
+    # Compute union of boxes
+    union = ((boxes1[:, 2] - boxes1[:, 0]) * (boxes1[:, 3] - boxes1[:, 1])) + ((boxes2[:, 2] - boxes2[:, 0]) * (boxes2[:, 3] - boxes2[:, 1])) - intersection
+
+    # Compute IoU
+    iou = intersection / union
+    iou = iou.reshape((M, N))
+    
     ##########################################################################
     #                             END OF YOUR CODE                           #
     ##########################################################################
