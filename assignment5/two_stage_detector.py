@@ -740,16 +740,16 @@ class RPN(nn.Module):
             ##################################################################
             
             # Sample anchor boxes
-            sample_anchor_boxes = sample_rpn_training(
-                gt_boxes: matched_gt_boxes,
-                num_samples: num_images,
-                fg_fraction: 0.5
+            fg_idx, bg_idx = sample_rpn_training(
+                gt_boxex=matched_gt_boxes,
+                num_samples=num_images,
+                fg_fraction=0.5
             )
             
             # Compute GT targets
             rcnn_get_deltas_from_anchors(
-                anchors: sample_anchor_boxes,
-                gt_boxes: matched_gt_boxes
+                anchors=sample_anchor_boxes,
+                gt_boxes=matched_gt_boxes
             )
             
             # Feel free to delete this line: (but keep variable names same)
@@ -958,6 +958,7 @@ class FasterRCNN(nn.Module):
         roi_feats_per_fpn_level = {
             level_name: None for level_name in feats_per_fpn_level.keys()
         }
+        
         # Get RPN proposals from all levels.
         for level_name in feats_per_fpn_level.keys():
             ##################################################################
@@ -1024,9 +1025,9 @@ class FasterRCNN(nn.Module):
             # Replace "pass" statement with your code
             matched_gt_boxes.append(
                 rcnn_match_anchors_to_gt(
-                    anchor_boxes: proposals_per_image,
-                    gt_boxes: gt_boxes_per_image,
-                    iou_thresholds: (0.5, 1.0),
+                    anchor_boxes=proposals_per_image,
+                    gt_boxes=gt_boxes_per_image,
+                    iou_thresholds=(0.5, 1.0),
                 )
             )
             
@@ -1054,10 +1055,23 @@ class FasterRCNN(nn.Module):
         #      other VC classes have IDs (1-20). Make sure to reverse shift
         #      this during inference, so that model predicts VOC IDs (0-19).
         ######################################################################
+        
         # Feel free to delete this line: (but keep variable names same)
         loss_cls = None
-        # Replace "pass" statement with your code
-        pass
+        
+        # Sample anchor boxes
+        fg_idx, bg_idx = sample_rpn_training(
+            gt_boxes=matched_gt_boxes,
+            num_samples=num_images,
+            fg_fraction=0.25
+        )
+        
+        # Get GT class labels
+        fg_class_labels = matched_gt_boxes[fg_idx][:, 4]
+                
+        # Compute cross entropy loss
+        #F.cross_entropy(input=fg_class_labels, target=)
+        
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
