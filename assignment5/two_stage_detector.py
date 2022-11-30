@@ -396,8 +396,37 @@ def rcnn_get_deltas_from_anchors(
     # TODO: Implement the logic to get deltas.                               #
     # Remember to set the deltas of "background/neutral" GT boxes to -1e8    #
     ##########################################################################
-    # Replace "pass" statement with your code
-    pass
+    
+    # Compute height and width of anchor
+    anchor_height = anchors[:, 3] - anchors[:, 1]
+    anchor_width = anchors[:, 2] - anchors[:, 0]
+    
+    # Compute centers of anchors
+    anchor_centers = torch.zeros((anchors.shape[0], 2)) 
+    anchor_centers[:, 0] = anchors[:, 0] + (anchor_width / 2)
+    anchor_centers[:, 1] = anchors[:, 1] + (anchor_height / 2)
+    
+    # Compute height and width of ground truth boxes
+    gt_height = gt_boxes[:, 3] - gt_boxes[:, 1]
+    gt_width = gt_boxes[:, 2] - gt_boxes[:, 0]
+    
+    # Compute centers of ground truth boxes
+    gt_centers = torch.zeros((anchors.shape[0], 2)) 
+    gt_centers[:, 0] = gt_boxes[:, 0] + (gt_width / 2)
+    gt_centers[:, 1] = gt_boxes[:, 1] + (gt_height / 2)
+    
+    # Initialize empty deltas tensor
+    deltas = torch.zeros_like(anchors)
+    
+    # Compute deltas
+    deltas[:, [0,1]] = gt_centers - anchor_centers # center deltas dx and dy
+    deltas[:, 2] = gt_width / anchor_width         # dw
+    deltas[:, 3] = gt_height / anchor_height       # dh
+    
+    # Handle background boxes
+    mask_background = gt_boxes[:, 4] == -1
+    deltas[mask_background, :] = 1e-8
+    
     ##########################################################################
     #                             END OF YOUR CODE                           #
     ##########################################################################
@@ -430,9 +459,35 @@ def rcnn_apply_deltas_to_anchors(
     ##########################################################################
     # TODO: Implement the transformation logic to get output boxes.          #
     ##########################################################################
-    # Replace "pass" statement with your code
-    pass
-
+    
+    # Compute height and width of anchor
+    anchor_height = anchors[:, 3] - anchors[:, 1]
+    anchor_width = anchors[:, 2] - anchors[:, 0]
+    
+    # Compute height and width of output boxes
+    output_boxes_width = anchor_width * deltas[:, 2]
+    output_boxes_height = anchor_height * deltas[:, 3]
+    
+    # Compute centers of anchors
+    anchor_centers = torch.zeros((anchors.shape[0], 2)) 
+    anchor_centers[:, 0] = anchors[:, 0] + (anchor_width / 2)
+    anchor_centers[:, 1] = anchors[:, 1] + (anchor_height / 2)
+    
+    # Compute output boxes centers
+    output_boxes_centers = torch.zeros((anchors.shape[0], 2))
+    output_boxes_centers = anchor_centers + deltas[:, [0,1]]
+    
+    # Compute output boxes shape in XYXY format
+    output_boxes = torch.zeros_like(anchors)
+    output_boxes[:, 0] = output_boxes_centers[:, 0] - output_boxes_width / 2
+    output_boxes[:, 1] = output_boxes_centers[:, 1] - output_boxes_height / 2
+    output_boxes[:, 2] = output_boxes_centers[:, 0] + output_boxes_width / 2
+    output_boxes[:, 3] = output_boxes_centers[:, 1] + output_boxes_height / 2
+    
+    # Handle background boxes
+    mask_background = (deltas[:] == torch.Tensor([1e-8, 1e-8, 1e-8, 1e-8])).sum(axis=1) > 1
+    output_boxes[mask_background, :] = -1
+    
     ##########################################################################
     #                             END OF YOUR CODE                           #
     ##########################################################################
@@ -596,14 +651,14 @@ class RPN(nn.Module):
         # HINT: You have already implemented everything, just have to call the
         # appropriate functions.
         ######################################################################
+        
         # Feel free to delete this line: (but keep variable names same)
         pred_obj_logits, pred_boxreg_deltas, anchors_per_fpn_level = (
             None,
             None,
             None,
         )
-        # Replace "pass" statement with your code
-        pass
+        
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
