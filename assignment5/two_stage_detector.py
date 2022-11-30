@@ -659,6 +659,8 @@ class RPN(nn.Module):
             None,
         )
         
+        pred_obj_logits, pred_boxreg_deltas, anchors_per_fpn_level
+        
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
@@ -736,6 +738,20 @@ class RPN(nn.Module):
             #   3. Calculate objectness and box reg losses per sampled anchor.
             #      Remember to set box loss for "background" anchors to 0.
             ##################################################################
+            
+            # Sample anchor boxes
+            sample_anchor_boxes = sample_rpn_training(
+                gt_boxes: matched_gt_boxes,
+                num_samples: num_images,
+                fg_fraction: 0.5
+            )
+            
+            # Compute GT targets
+            rcnn_get_deltas_from_anchors(
+                anchors: sample_anchor_boxes,
+                gt_boxes: matched_gt_boxes
+            )
+            
             # Feel free to delete this line: (but keep variable names same)
             loss_obj, loss_box = None, None
             # Replace "pass" statement with your code
@@ -871,9 +887,24 @@ class FasterRCNN(nn.Module):
         ######################################################################
         # Fill this list. It is okay to use your implementation from
         # `FCOSPredictionNetwork` for this code block.
+        
         cls_pred = []
-        # Replace "pass" statement with your code
-        pass
+        in_channels = 64
+
+        # Generate layers of alternating convolutional and activation layers
+        for i, c_out in enumerate(stem_channels):
+            c_in = in_channels if i == 0 else stem_channels[i-1]
+            cls_pred.append(
+                nn.Conv2d(in_channels=c_in, out_channels=c_out, kernel_size=3, stride=1, padding=1)
+            )
+            cls_pred.append(
+                nn.ReLU()
+            )
+        
+        # Initialize weights and biases of stems
+        for i in range(len(stem_channels)):
+            nn.init.normal_(cls_pred[2*i].weight, mean=0.0, std=1.0)
+            nn.init.zeros_(cls_pred[2*i].bias)
 
         ######################################################################
         # TODO: Add an `nn.Flatten` module to `cls_pred`, followed by a linear
@@ -881,8 +912,11 @@ class FasterRCNN(nn.Module):
         # Think about the input size of this linear layer based on the output
         # shape from `nn.Flatten` layer.
         ######################################################################
+        
         # Replace "pass" statement with your code
-        pass
+        cls_pred.append(nn.Flatten())
+        cls_pred.append(nn.Linear(stem_channels[-1] ** 2, num_classes + 1))
+        
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
@@ -935,7 +969,13 @@ class FasterRCNN(nn.Module):
             level_stride = self.backbone.fpn_strides[level_name]
 
             # Replace "pass" statement with your code
-            pass
+            roi_feats = torchvision.ops.roi_align(
+                level_feats,
+                level_props,
+                level_stride,
+                aligned=True
+            )
+            
             ##################################################################
             #                         END OF YOUR CODE                       #
             ##################################################################
@@ -980,8 +1020,16 @@ class FasterRCNN(nn.Module):
                 proposals_per_fpn_level_per_image, dim=0
             )
             gt_boxes_per_image = gt_boxes[_idx]
+            
             # Replace "pass" statement with your code
-            pass
+            matched_gt_boxes.append(
+                rcnn_match_anchors_to_gt(
+                    anchor_boxes: proposals_per_image,
+                    gt_boxes: gt_boxes_per_image,
+                    iou_thresholds: (0.5, 1.0),
+                )
+            )
+            
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
