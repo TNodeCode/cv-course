@@ -198,10 +198,10 @@ class Solver:
             for inputs, labels in data_loader:
                 # Transfer data to selected device.
                 if isinstance(inputs, (list, tuple)):
-                    inputs = [input.to(self.device) for input in inputs if isinstance(input, torch.Tensor)]
+                    inputs = [input.to(self.device).to(torch.float32) for input in inputs if isinstance(input, torch.Tensor)]
                 else:
-                    inputs = inputs.to(self.device)
-                labels = labels.to(self.device)
+                    inputs = inputs.to(self.device).to(torch.float32)
+                labels = labels.to(self.device).to(torch.int64)
 
                 # Compute forward pass.
                 outputs = self.model(inputs)
